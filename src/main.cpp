@@ -1,54 +1,60 @@
 #include <iostream>
+#include <string>
 #include <chrono>
+#include <algorithm>
 #include <thread>
-#include <sys/ioctl.h>
-#include <unistd.h>
-#include <X11/Xlib.h>
-#include "X11/keysym.h"
-//TODO:
-//GITHUB
+#include "util.hpp"
 
-void getWinSize(int* w, int* h) {
-    winsize terminal_size;
+using namespace std::this_thread;     
+using namespace std::chrono_literals;
+using std::chrono::duration;
+using std::chrono::system_clock;
 
-    ioctl(STDOUT_FILENO, TIOCGWINSZ, &terminal_size);
-
-    *w = terminal_size.ws_col;
-    *h = terminal_size.ws_row;
-}
-
-bool getKeyPressed(KeySym key) {
-    Display *display = XOpenDisplay(":0");
-    char keysReturn[32];
-
-    XQueryKeymap(display, keysReturn);
-    KeyCode keycode = XKeysymToKeycode(display, key);
-    bool isPressed = !!(keysReturn[keycode >> 3] & (1 << (keycode & 7)));
-    XCloseDisplay(display);
-    return isPressed;
-}
+/*
+TODO:
+make cross-platform using ncurses
+*/
 
 int main() {
-    using namespace std::this_thread;     
-    using namespace std::chrono_literals; 
-    //using std::chrono::system_clock;
+    int winWidth, winHeight;
+    getWinSize(&winWidth, &winHeight);
 
-    bool run = true;
-    int width, height;
+    const int gameWidth = (winWidth < 30) ? winWidth : 30;
+    const int gameHeight = (winHeight < 20) ? winHeight : 20;
+   
+    std::string screen[gameHeight];
 
-    getWinSize(&width, &height);
-
-    std::cout << "\x1b[2J\x1b[H"; 
-    while(run) {
-        //kinda works, have to hold q for ~200ms
-        //find way to get current keys pressed?
-        //may be over optimising
+    int totalFrames = 0;
+    while(true) {
         if(getKeyPressed(XK_q)) {
-            run = false;
             break;
         }
-        std::cout << "hmm" << std::endl;
-        sleep_for(200ms);
+
+        auto startTime = system_clock::now();
+
+        std::system("clear"); // bad fix later
+        std::cout << "\x1b[2J\x1b[H"; 
+
+        // draw columns to string
+        // i think doing this intermediate step will be faster
+        for(std::string& line : screen) {
+            line = ""; // remove previous line
+            for(int i=0; i<gameWidth; i++) {
+                line.append("y");
+            }
+        }
+
+        for (const std::string& line : screen) {
+            // i think std::endl is slow?
+            std::cout << line << "\n";
+        }
+
+        totalFrames++;
+        std::cout << "total frames: " << totalFrames << "\n";
+
+        // wait until end of frame (frame length - time already run)
+        // might cause problems if negative values of time
+        sleep_for(50ms - (system_clock::now() - startTime)); 
     }
     
     return 0;
