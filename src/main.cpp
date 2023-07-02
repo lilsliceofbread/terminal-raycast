@@ -13,10 +13,9 @@ make cross-platform using ncurses
 
 using namespace std::chrono_literals;
 
-#define MAX_WIDTH 50
-#define MAX_HEIGHT 35
-#define RAY_LENGTH 20
-#define FRAME_LENGTH 1000ms
+#define MAX_WIDTH 70
+#define MAX_HEIGHT 50
+#define FRAME_LENGTH 16.66ms
 
 int main() {
     int winWidth, winHeight;
@@ -29,7 +28,9 @@ int main() {
     float distances[scrWidth] = {0}; // will store distances from player to surrounds
     std::string screen[scrHeight];
     // 1 for wall, 0 for air
-    uint8_t map[10][10] = {
+    constexpr int mapWidth = 10;
+    constexpr int mapHeight = 10;
+    uint8_t map[mapWidth][mapHeight] = {
         {1,1,1,1,1,1,1,1,1,1},
         {1,0,0,0,0,0,0,0,0,1},
         {1,0,0,0,0,0,0,0,0,1},
@@ -42,10 +43,12 @@ int main() {
         {1,1,1,1,1,1,1,1,1,1}
     };
 
-    const float fov = M_PI_2; // pi/2 radians field of view
+    const float rayLength = sqrt(mapWidth*mapWidth + mapHeight*mapHeight);
+
+    const float fov = M_PI_4; // 45 deg field of view
     // start pos / angle
-    int playerX = 5;
-    int playerY = 5;
+    int playerX = 5.5;
+    int playerY = 5.5;
     float playerAngle = 0;
 
     int totalFrames = 0;
@@ -65,28 +68,25 @@ int main() {
         std::cout << "\x1b[2J\x1b[H"; 
 
         // player movement
-        playerAngle += M_PI_4;
-        // prevent angle > 360 (idk if required)
+        playerAngle += 0.01;
+        // prevent angle > 360
         if(playerAngle > (2 * M_PI))
             playerAngle -= 2 * M_PI;
-        std::cout << "playerAngle: " << playerAngle << "\n";
+        std::cout << "playerAngle: " << playerAngle * (180/M_PI) << " deg\n";
 
         // raycast to calculate distance values 
         for(int i=0; i <= scrWidth; i++) {
             // current angle will go from leftmost of fov to rightmost in steps of fov/scrwidth
             currAngle = (playerAngle - (fov / 2)) + (i * (fov/scrWidth));
 
-            //std::cout << "currAngle: " << currAngle << "\n";
             // DDA algorithm to find intersection with block
 
             // dx = end - start = x + LENcos(angle) - x = LENcos(angle)
-            dxLine = RAY_LENGTH * cos(currAngle);           
-            dyLine = RAY_LENGTH * sin(currAngle);
+            dxLine = rayLength * cos(currAngle);           
+            dyLine = rayLength * sin(currAngle);
 
-            //std::cout << "dx " << dxLine << " dy " << dyLine << "\n";
 
             step = (abs(dxLine) >= abs(dyLine)) ? abs(dxLine) : abs(dyLine);
-            //std::cout << step << "\n";
 
             dxLine = dxLine / step;
             dyLine = dyLine / step;
@@ -99,27 +99,27 @@ int main() {
                 squareY = round(currY);
                 // if current square is a wall
                 if(map[squareX][squareY] == 1) {
-                    //distances[i] = 0.8 + (0.4 * sqrt(squareX*squareX + squareY*squareY));
-                    distances[i] = sqrt(squareX*squareX + squareY*squareY);
+                    // distance between wall and player, weird constants to correct for distance
+                    distances[i] = 0.8 + (0.4 * sqrt(pow((squareX - playerX), 2) + 
+                                        pow((squareY - playerY), 2)));
                     break;
                 }
                 currX += dxLine;
                 currY += dyLine;
             }
-            //std::cout << distances[i] << "\n";
         }
 
-        // draw columns to string
-        // doing this intermediate step means drawing each line to screen is done concurrently
         int currLine = 0.5;
         float distFromCentre;
         float halfColumnHeight;
+        // draw columns to string
+        // doing this intermediate step means drawing each line to screen is done concurrently
         for(std::string& line : screen) {
             line = ""; // remove previous line
             // should get dist to centre of screen, might be off by 1 on even screen heights
             distFromCentre = abs((scrHeight / 2) - currLine);
             //std::cout << distFromCentre << "\n";
-            for(int i=0; i<scrWidth; i++) {
+            for(int i=0; i<=scrWidth; i++) {
                 // inefficient, has to calculate more than necessary
                 // looping through columns instead would be faster
                 halfColumnHeight = scrHeight / (2 * distances[i]);
