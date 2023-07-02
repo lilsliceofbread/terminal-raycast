@@ -1,6 +1,6 @@
 NAME := raycast
 CXX := g++
-CXX_FLAGS := -g -Wall -I./inc
+CXX_FLAGS := -g -Wall -I./inc -std=c++17
 # CPP_FLAGS := -MMD -MP # pre-processor flags
 
 BUILD_DIR := ./build

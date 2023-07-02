@@ -4,6 +4,7 @@
 #include <chrono>
 #include <algorithm>
 #include <thread>
+#include <tuple>
 #include "util.hpp"
 
 /*
@@ -45,18 +46,21 @@ int main() {
 
     const float rayLength = sqrt(mapWidth*mapWidth + mapHeight*mapHeight);
 
-    const float fov = M_PI_4; // 45 deg field of view
+    constexpr float fov = M_PI_4; // 45 deg field of view
+    constexpr float turnSpeed = 0.015f;
     // start pos / angle
-    int playerX = 5.5;
-    int playerY = 5.5;
+    int playerX = 5;
+    int playerY = 5;
     float playerAngle = 0;
 
     int totalFrames = 0;
     float currAngle;
+    float lineEndX, lineEndY;
     float dxLine,dyLine; // variables for DDA line
     float step;
     float currX, currY;
     int squareX, squareY;
+    float intersectX, intersectY;
     // game loop
     while(true) {
         if(getKeyPressed(XK_q)) {
@@ -68,10 +72,19 @@ int main() {
         std::cout << "\x1b[2J\x1b[H"; 
 
         // player movement
-        playerAngle += 0.01;
-        // prevent angle > 360
-        if(playerAngle > (2 * M_PI))
+        if(getKeyPressed(XK_Right)) {
+            playerAngle += turnSpeed;
+        } else if (getKeyPressed(XK_Left)) {
+            playerAngle -= turnSpeed;
+        }
+
+        // prevent angle > 360 or < 0
+        if(playerAngle > (2 * M_PI)) {
             playerAngle -= 2 * M_PI;
+        } else if (playerAngle < 0) {
+            playerAngle += 2 * M_PI;
+        }
+
         std::cout << "playerAngle: " << playerAngle * (180/M_PI) << " deg\n";
 
         // raycast to calculate distance values 
@@ -81,10 +94,12 @@ int main() {
 
             // DDA algorithm to find intersection with block
 
-            // dx = end - start = x + LENcos(angle) - x = LENcos(angle)
-            dxLine = rayLength * cos(currAngle);           
-            dyLine = rayLength * sin(currAngle);
+            lineEndX = playerX + (rayLength * cos(currAngle));           
+            lineEndY = playerY + (rayLength * sin(currAngle));
 
+            // dx = end - start = x + LENcos(angle) - x = LENcos(angle)
+            dxLine = lineEndX - playerX;
+            dyLine = lineEndY - playerY;
 
             step = (abs(dxLine) >= abs(dyLine)) ? abs(dxLine) : abs(dyLine);
 
@@ -94,19 +109,29 @@ int main() {
             currX = playerX;
             currY = playerY;
             for(int j=1; j <= step; j++) {
-                // store rounded values as they are used twice
+                // may remove
                 squareX = round(currX);
                 squareY = round(currY);
                 // if current square is a wall
                 if(map[squareX][squareY] == 1) {
                     // distance between wall and player, weird constants to correct for distance
-                    distances[i] = 0.8 + (0.4 * sqrt(pow((squareX - playerX), 2) + 
-                                        pow((squareY - playerY), 2)));
+                    /*distances[i] = 0.8 + (0.4 * sqrt(
+                                        pow((squareX - playerX), 2) + 
+                                        pow((squareY - playerY), 2)));*/
+                    std::tie(intersectX, intersectY) = lineSquareIntersect(
+                                                            playerX, playerY, 
+                                                            lineEndX, lineEndY, 
+                                                            squareX, squareY
+                                                       );
+                    //std::cout << "x: " << intersectX << " y: " << intersectY << "\n";
+                    distances[i] = sqrt(pow((intersectX - playerX), 2) + 
+                                        pow((intersectY - playerY), 2));
                     break;
                 }
                 currX += dxLine;
                 currY += dyLine;
             }
+            //std::cout << distances[i] << "\n";
         }
 
         int currLine = 0.5;
