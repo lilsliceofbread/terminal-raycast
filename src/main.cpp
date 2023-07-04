@@ -10,11 +10,12 @@
 /*
 TODO:
 make cross-platform using ncurses
+move all into separate functions (e.g. findGridIntersect)
 */
 
 using namespace std::chrono_literals;
 
-#define MAX_WIDTH 70
+#define MAX_WIDTH 120
 #define MAX_HEIGHT 50
 #define FRAME_LENGTH 16.66ms
 
@@ -28,10 +29,11 @@ int main() {
    
     float distances[scrWidth] = {0}; // will store distances from player to surrounds
     std::string screen[scrHeight];
+
     // 1 for wall, 0 for air
     constexpr int mapWidth = 10;
     constexpr int mapHeight = 10;
-    uint8_t map[mapWidth][mapHeight] = {
+    uint8_t map[mapHeight][mapWidth] = {
         {1,1,1,1,1,1,1,1,1,1},
         {1,0,0,0,0,0,0,0,0,1},
         {1,0,0,0,0,0,0,0,0,1},
@@ -48,17 +50,16 @@ int main() {
 
     constexpr float fov = M_PI_4; // 45 deg field of view
     constexpr float turnSpeed = 0.015f;
+    constexpr float playerSpeed = 0.05f;
     // start pos / angle
-    int playerX = 5;
-    int playerY = 5;
+    float playerX = 5;
+    float playerY = 5;
     float playerAngle = 0;
 
     int totalFrames = 0;
+    float planeX, planeY;
     float currAngle;
     float lineEndX, lineEndY;
-    float dxLine,dyLine; // variables for DDA line
-    float step;
-    float currX, currY;
     int squareX, squareY;
     float intersectX, intersectY;
     // game loop
@@ -69,9 +70,17 @@ int main() {
         auto startTime = std::chrono::system_clock::now();
 
         std::system("clear"); // bad fix later
-        std::cout << "\x1b[2J\x1b[H"; 
+        std::cout << "\x1b[2J\x1b[H\x1b[31m"; 
 
         // player movement
+        if(getKeyPressed(XK_w) && !getKeyPressed(XK_s)) {
+            playerX += playerSpeed * cos(playerAngle);
+            playerY += playerSpeed * sin(playerAngle);
+        } else if(getKeyPressed(XK_s) && !getKeyPressed(XK_w)) {
+            playerX -= playerSpeed * cos(playerAngle);
+            playerY -= playerSpeed * sin(playerAngle);
+        }
+
         if(getKeyPressed(XK_Right)) {
             playerAngle += turnSpeed;
         } else if (getKeyPressed(XK_Left)) {
@@ -85,53 +94,39 @@ int main() {
             playerAngle += 2 * M_PI;
         }
 
-        std::cout << "playerAngle: " << playerAngle * (180/M_PI) << " deg\n";
+        std::cout << "angle: " << playerAngle * (180/M_PI) << " x: " << playerX << " y: " << playerY << "\n";
 
         // raycast to calculate distance values 
         for(int i=0; i <= scrWidth; i++) {
             // current angle will go from leftmost of fov to rightmost in steps of fov/scrwidth
             currAngle = (playerAngle - (fov / 2)) + (i * (fov/scrWidth));
 
-            // DDA algorithm to find intersection with block
+            // actual points on screen viewing plane
+            planeX = playerX + (tan(playerAngle - currAngle) * sin(playerAngle)) + cos(playerAngle);
+            planeY = playerY + (tan(playerAngle - currAngle) * cos(playerAngle)) + sin(playerAngle);
 
-            lineEndX = playerX + (rayLength * cos(currAngle));           
-            lineEndY = playerY + (rayLength * sin(currAngle));
+            lineEndX = playerX + rayLength * cos(currAngle);           
+            lineEndY = playerY + rayLength * sin(currAngle);
 
-            // dx = end - start = x + LENcos(angle) - x = LENcos(angle)
-            dxLine = lineEndX - playerX;
-            dyLine = lineEndY - playerY;
+            // find which grid cell it intersects with
+            std::tie(squareX, squareY) = findGridIntersect(playerX, playerY, lineEndX, lineEndY, map, mapHeight, mapWidth);
 
-            step = (abs(dxLine) >= abs(dyLine)) ? abs(dxLine) : abs(dyLine);
+            // then get exact intersect point
+            std::tie(intersectX, intersectY) = raySquareIntersect(
+                                                    playerX, playerY, 
+                                                    lineEndX, lineEndY, 
+                                                    squareX, squareY
+                                                );
 
-            dxLine = dxLine / step;
-            dyLine = dyLine / step;
+            std::cout << "x: " << intersectX << " y: " << intersectY << "\n";
 
-            currX = playerX;
-            currY = playerY;
-            for(int j=1; j <= step; j++) {
-                // may remove
-                squareX = round(currX);
-                squareY = round(currY);
-                // if current square is a wall
-                if(map[squareX][squareY] == 1) {
-                    // distance between wall and player, weird constants to correct for distance
-                    /*distances[i] = 0.8 + (0.4 * sqrt(
-                                        pow((squareX - playerX), 2) + 
-                                        pow((squareY - playerY), 2)));*/
-                    std::tie(intersectX, intersectY) = lineSquareIntersect(
-                                                            playerX, playerY, 
-                                                            lineEndX, lineEndY, 
-                                                            squareX, squareY
-                                                       );
-                    //std::cout << "x: " << intersectX << " y: " << intersectY << "\n";
-                    distances[i] = sqrt(pow((intersectX - playerX), 2) + 
-                                        pow((intersectY - playerY), 2));
-                    break;
-                }
-                currX += dxLine;
-                currY += dyLine;
+            // if no intersection found
+            if(std::isnan(intersectX) || std::isnan(intersectY)) {
+                std::cout << "NaN intersection\n";
             }
-            //std::cout << distances[i] << "\n";
+            // store distance to intersection
+            distances[i] = sqrt(pow((intersectX - planeX), 2) + 
+                                pow((intersectY - planeY), 2));
         }
 
         int currLine = 0.5;
@@ -150,7 +145,7 @@ int main() {
                 halfColumnHeight = scrHeight / (2 * distances[i]);
                 //append character if column is there
                 if(distFromCentre <= halfColumnHeight) {
-                    line.append("#");
+                    line.append("|");
                 } else {
                     line.append(" ");
                 }
@@ -173,5 +168,6 @@ int main() {
         std::this_thread::sleep_for(FRAME_LENGTH - deltaTime); 
     }
     
+    std::cout << "\x1b[0m";
     return 0;
 }
