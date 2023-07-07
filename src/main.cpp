@@ -23,7 +23,21 @@ using namespace std::chrono_literals;
 #define X_WALL 0
 #define Y_WALL 1
 
+void playerInput(Vec2<float>& position, Vec2<float>& dirVec, Vec2<float>& planeVec, float& angle, float turnSpeed, float movementSpeed, uint8_t* map, int mapWidth, int mapHeight);
+
 int main() {
+    std::cout << 
+    " _____                   _             _  ______                          _            \n"
+    "|_   _|                 (_)           | | | ___ \\                        | |           \n"
+    "  | | ___ _ __ _ __ ___  _ _ __   __ _| | | |_/ /__ _ _   _  ___ __ _ ___| |_ ___ _ __ \n"
+    "  | |/ _ \\ '__| '_ ` _ \\| | '_ \\ / _` | | |    // _` | | | |/ __/ _` / __| __/ _ \\ '__|\n"
+    "  | |  __/ |  | | | | | | | | | | (_| | | | |\\ \\ (_| | |_| | (_| (_| \\__ \\ ||  __/ |   \n"
+    "  \\_/\\___|_|  |_| |_| |_|_|_| |_|\\__,_|_| \\_| \\_\\__,_|\\__, |\\___\\__,_|___/\\__\\___|_|   \n"
+    "                                                       __/ |                           \n"
+    "                                                      |___/                            \n"
+    << std::endl;
+
+
     int winWidth, winHeight;
     getWinSize(&winWidth, &winHeight);
 
@@ -52,17 +66,17 @@ int main() {
         1,0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
         1,0,0,0,0,2,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
         1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-        1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,3,3,3,0,0,0,0,0,1,
+        1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,0,3,3,0,0,0,0,0,1,
         1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,0,0,3,0,0,0,0,0,1,
         1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,0,0,3,0,0,0,0,0,1,
         1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,3,3,3,0,0,0,0,0,1,
         1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+        1,0,0,4,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+        1,0,0,4,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
         1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
         1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-        1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-        1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-        1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-        1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+        1,0,0,4,4,0,0,4,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+        1,0,0,4,4,0,0,4,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
         1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
         1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
     };
@@ -72,13 +86,29 @@ int main() {
     // start pos / angle
     Vec2<float> playerPos;
     playerPos.x = 12.0f, playerPos.y = 12.0f;
-    float playerAngle = M_PI;
+    float playerAngle = 0;
 
     // using vectors for the actual raycast calculations
     Vec2<float> planeVec;
-    planeVec.x = 0, planeVec.y = 0.5f;
+    planeVec.x = 0, planeVec.y = -1.0f; // initial plane vec relative to initial direction
 
     Vec2<float> dirVec;
+    dirVec.x = cos(playerAngle), dirVec.y = sin(playerAngle);
+
+    // can't use char because unicode requires more bytes
+    std::string wallChar = "|", ceilChar = "`", floorChar = "~";
+
+    std::cout << "Use Unicode characters? [y for yes]" << std::endl;
+    std::string answer;
+    std::getline(std::cin, answer);
+
+    std::string yes = "Yy";
+
+    if(yes.find(answer) != std::string::npos) { // if answer is matched in yes string
+        wallChar = ceilChar = floorChar = "\u2588";
+    } // all other options are the default
+
+
 
     auto gameStartTime = std::chrono::system_clock::now();
     int totalFrames = 0;
@@ -92,49 +122,8 @@ int main() {
         std::system("clear"); // bad fix later
         std::cout << "\x1b[2J\x1b[H\x1b[0m"; 
 
-
-
-        // player movementdirVec.y
-        if(getKeyPressed(XK_Right)) {
-            playerAngle -= turnSpeed;
-            // must recalculate plane vector, use rotation matrix
-            const float oldPlaneX = planeVec.x;
-            planeVec.x = (planeVec.x * cos(-turnSpeed)) - (planeVec.y * sin(-turnSpeed));
-            planeVec.y = (oldPlaneX * sin(-turnSpeed)) + (planeVec.y * cos(-turnSpeed));
-        } else if (getKeyPressed(XK_Left)) {
-            playerAngle += turnSpeed;
-            // recalculate plane vector with rotation matrix
-            const float oldPlaneX = planeVec.x;
-            planeVec.x = (planeVec.x * cos(turnSpeed)) - (planeVec.y * sin(turnSpeed));
-            planeVec.y = (oldPlaneX * sin(turnSpeed)) + (planeVec.y * cos(turnSpeed));
-        }
-
-        // prevent angle > 360 or < 0
-        if(playerAngle > (2.0f * M_PI)) {
-            playerAngle -= 2.0f * M_PI;
-        } else if (playerAngle < 0) {
-            playerAngle += 2.0f * M_PI;
-        }
-
-        dirVec.x = cos(playerAngle); 
-        dirVec.y = sin(playerAngle);
-
-        if(getKeyPressed(XK_w) && !getKeyPressed(XK_s)) {
-            playerPos.x += playerSpeed * dirVec.x;
-            playerPos.y += playerSpeed * dirVec.y;
-        } else if(getKeyPressed(XK_s) && !getKeyPressed(XK_w)) {
-            playerPos.x -= playerSpeed * dirVec.x;
-            playerPos.y -= playerSpeed * dirVec.y;
-        }
-
-        // perpendicular vector is sin and -cos or -sin and cos
-        if(getKeyPressed(XK_a) && !getKeyPressed(XK_d)) {
-            playerPos.x -= playerSpeed * dirVec.y;
-            playerPos.y -= playerSpeed * (-dirVec.x);
-        } else if(getKeyPressed(XK_d) && !getKeyPressed(XK_a)) {
-            playerPos.x += playerSpeed * dirVec.y;
-            playerPos.y += playerSpeed * (-dirVec.x);
-        } 
+        //player movement
+        playerInput(playerPos, dirVec, planeVec, playerAngle, turnSpeed, playerSpeed, map, mapWidth, mapHeight);
 
         std::cout << "angle: " << playerAngle * (180/M_PI) << " x: " << playerPos.x << " y: " << playerPos.y << "\n";
         std::cout << "dir vec: " << dirVec.x << ", " << dirVec.y << " plane vec: " << planeVec.x << ", " << planeVec.y << "\n";
@@ -209,13 +198,16 @@ int main() {
             }
 
             // get distance to wall
+            // this is derived using similar triangles
+            // by other people smarter than me (lodev.org)
             if(wallSide == X_WALL) {
                 distances[i] = currDistX - xStepRatio;
+                // also store wall colours
                 wallColours[i] = map[(tilePos.y * mapHeight) + tilePos.x];
                 //std::cout << "x: " << currDistX << ", " << xStepRatio << " dist: " << distances[i] << "\n";
             } else {
                 distances[i] = currDistY - yStepRatio;
-                wallColours[i] = map[(tilePos.y * mapHeight) + tilePos.x];
+                wallColours[i] = map[(tilePos.y * mapHeight) + tilePos.x] + 10; // different wall colours for Y_WALLs
                 //std::cout << "y: " << currDistY << ", " << yStepRatio << " dist: " << distances[i] << "\n";
             }
         }
@@ -224,11 +216,13 @@ int main() {
 
         // draw columns to string
         // doing this intermediate step means drawing each line to screen is done concurrently
+        // move this into function!!!
         int currLine = 0;
         float distFromCentre;
         float halfColumnHeight;
-        uint8_t prevColour = -1, currColour; // used to determine if to switch colour
-        std::string floorCeilColour = "\x1b[37m"; // white
+        uint8_t prevColour = 0, currColour; // used to determine if to switch colour
+        std::string floorColour = "\x1b[37m"; // white
+        std::string ceilColour = "\x1b[36m"; // cyan
         bool prevWasFloorCeil = false;
         for(std::string& line : screen) {
             line = ""; // remove previous line
@@ -249,22 +243,22 @@ int main() {
                         line.append(ANSIStringFromColour(currColour));
                     }
                     
-                    line.append("|"); // wall
+                    line.append(wallChar); // wall
                     prevWasFloorCeil = false;
                 } else {
                     if(distFromCentre > 0) {
                         // only add ansi colour when necessary
                         if(!prevWasFloorCeil)
-                            line.append(floorCeilColour);
+                            line.append(ceilColour);
 
-                        line.append("`"); // ceiling
+                        line.append(ceilChar); // ceiling
                         prevWasFloorCeil = true;
                     } else {
                         // only add ansi colour when necessary
                         if(!prevWasFloorCeil)
-                            line.append(floorCeilColour);
+                            line.append(floorColour);
 
-                        line.append("~"); // floor
+                        line.append(floorChar); // floor
                         prevWasFloorCeil = true;
                     }
                 }
@@ -294,8 +288,47 @@ int main() {
     }
 
     std::chrono::duration<double> totalTime = (std::chrono::system_clock::now()) - gameStartTime;
-    std::cout << "\x1b[37mtotal time running: " << totalTime.count() << "s\n";
+    std::cout << "\x1b[0mtotal time running: " << totalTime.count() << "s\n";
     
-    // end terminal colour
     return 0;
+}
+
+void playerInput(Vec2<float>& position, Vec2<float>& dirVec, Vec2<float>& planeVec, float& angle, float turnSpeed, float movementSpeed, uint8_t* map, int mapWidth, int mapHeight) {
+        // player movement
+        if(getKeyPressed(XK_Right)) {
+            angle -= turnSpeed;
+
+            // must recalculate vectors
+            dirVec.x = cos(angle); // dir vec is just unit vector
+            dirVec.y = sin(angle); // so is just cos and sin
+
+            rotate2DVector(planeVec, -turnSpeed);
+        } else if (getKeyPressed(XK_Left)) {
+            angle += turnSpeed;
+            
+            dirVec.x = cos(angle); 
+            dirVec.y = sin(angle);
+
+            rotate2DVector(planeVec, turnSpeed);
+        }
+
+        // prevent angle > 360 or < 0
+        if(angle > (2.0f * M_PI)) {
+            angle -= 2.0f * M_PI;
+        } else if (angle < 0) {
+            angle += 2.0f * M_PI;
+        }
+
+        if(getKeyPressed(XK_w) && !getKeyPressed(XK_s)) {
+            moveIfNoCollision(position, movementSpeed * dirVec.x, movementSpeed * dirVec.y, map, mapWidth, mapHeight);
+        } else if(getKeyPressed(XK_s) && !getKeyPressed(XK_w)) {
+            moveIfNoCollision(position, -(movementSpeed * dirVec.x), -(movementSpeed * dirVec.y), map, mapWidth, mapHeight);
+        }
+
+        // perpendicular vector is sin and -cos or -sin and cos
+        if(getKeyPressed(XK_a) && !getKeyPressed(XK_d)) {
+            moveIfNoCollision(position, -(movementSpeed * dirVec.y), movementSpeed * dirVec.x, map, mapWidth, mapHeight);
+        } else if(getKeyPressed(XK_d) && !getKeyPressed(XK_a)) {
+            moveIfNoCollision(position, movementSpeed * dirVec.y, -(movementSpeed * dirVec.x), map, mapWidth, mapHeight);
+        } 
 }
