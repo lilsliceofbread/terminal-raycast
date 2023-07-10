@@ -31,41 +31,40 @@ bool getKeyPressed(KeySym key) {
     return isPressed;
 }
 
-std::string ANSIStringFromColour(uint8_t colour) {
-    // would be better to just return the number
-    std::string ANSIString;
+int ANSIColourFromColour(uint8_t colour) {
+    int ANSIcolour = 0;
 
     // shouldn't get 0 as it is not a wall
     switch(colour) {
         // darker X_WALLs
         case 1:
-            ANSIString = "\x1b[34m"; // blue background walls 
+            ANSIcolour = 37; // white background walls 
             break;
         case 2:
-            ANSIString = "\x1b[31m"; // red
+            ANSIcolour = 31; // red
             break;
         case 3:
-            ANSIString = "\x1b[32m"; // green
+            ANSIcolour = 34; // blue
             break;
         case 4:
-            ANSIString = "\x1b[35m"; // magenta
+            ANSIcolour = 35; // magenta
             break;
         // bright Y_WALLs
         case 11:
-            ANSIString = "\x1b[94m"; // bright blue 
+            ANSIcolour = 97; // bright white
             break;
         case 12:
-            ANSIString = "\x1b[91m"; // bright red
+            ANSIcolour = 91; // bright red
             break;
         case 13:
-            ANSIString = "\x1b[92m"; // bright green
+            ANSIcolour = 94; // bright blue
             break;
         case 14:
-            ANSIString = "\x1b[95m"; // bright magenta
+            ANSIcolour = 95; // bright magenta
             break;
     }
 
-    return ANSIString;
+    return ANSIcolour;
 }
 
 void rotate2DVector(Vec2<float>& vec, float angle) {

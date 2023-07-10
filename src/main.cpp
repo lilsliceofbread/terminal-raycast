@@ -11,7 +11,7 @@
 /*
 TODO:
 make cross-platform using ncurses
-move all into separate functions
+column by column drawing to show how it works
 */
 
 using namespace std::chrono_literals;
@@ -24,6 +24,7 @@ using namespace std::chrono_literals;
 #define Y_WALL 1
 
 void playerInput(Vec2<float>& position, Vec2<float>& dirVec, Vec2<float>& planeVec, float& angle, float turnSpeed, float movementSpeed, uint8_t* map, int mapWidth, int mapHeight);
+void drawColumnsToScreen(float* distances, uint8_t* wallColours, int scrWidth, int scrHeight, std::string wallChar, std::string ceilChar, std::string floorChar);
 
 int main() {
     std::cout << 
@@ -47,7 +48,6 @@ int main() {
    
     float distances[scrWidth] = {0}; // will store distances from player to surrounds
     uint8_t wallColours[scrWidth] = {0}; // colours of walls
-    std::string screen[scrHeight];
 
     // 1 for wall, 0 for air
     constexpr int mapWidth = 25;
@@ -81,8 +81,8 @@ int main() {
         1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
     };
 
-    constexpr float turnSpeed = 0.02f;
-    constexpr float playerSpeed = 0.12f;
+    constexpr float turnSpeed = 10.0f;
+    constexpr float playerSpeed = 30.0f;
     // start pos / angle
     Vec2<float> playerPos;
     playerPos.x = 12.0f, playerPos.y = 12.0f;
@@ -95,7 +95,7 @@ int main() {
     Vec2<float> dirVec;
     dirVec.x = cos(playerAngle), dirVec.y = sin(playerAngle);
 
-    // can't use char because unicode requires more bytes
+    // can't use char because unicode :(
     std::string wallChar = "|", ceilChar = "`", floorChar = "~";
 
     std::cout << "Use Unicode characters? [y for yes]" << std::endl;
@@ -110,7 +110,9 @@ int main() {
 
 
 
+
     auto gameStartTime = std::chrono::system_clock::now();
+    float lastDeltaTime = 0.003; // reasonable starting value
     int totalFrames = 0;
     // game loop
     while(true) {
@@ -119,45 +121,45 @@ int main() {
         }
         auto frameStart = std::chrono::system_clock::now();
 
-        std::system("clear"); // bad fix later
-        std::cout << "\x1b[2J\x1b[H\x1b[0m"; 
+        int systemRet = std::system("clear"); // bad fix later
+        // if system returns error exit
+        if(systemRet == -1) exit(1);
 
-        //player movement
-        playerInput(playerPos, dirVec, planeVec, playerAngle, turnSpeed, playerSpeed, map, mapWidth, mapHeight);
+        std::cout << "\x1b[2J\x1b[H\x1b[0m"; // clear screen w/ ANSI codes
+
+
+        
+        playerInput(playerPos, dirVec, planeVec, playerAngle, turnSpeed * lastDeltaTime, playerSpeed * lastDeltaTime, map, mapWidth, mapHeight);
+
+
 
         std::cout << "angle: " << playerAngle * (180/M_PI) << " x: " << playerPos.x << " y: " << playerPos.y << "\n";
-        std::cout << "dir vec: " << dirVec.x << ", " << dirVec.y << " plane vec: " << planeVec.x << ", " << planeVec.y << "\n";
         
 
 
         // raycast to calculate distance values 
+        Vec2<float> rayVec;
+        Vec2<int> tilePos;
+        float currDistX, currDistY;     // distance from player to current point in loop
+        float xStepRatio, yStepRatio;
+        int xStep, yStep;               // -1 or 1 depending on direction
         for(int i=0; i <= scrWidth; i++) {
             float planeScalar = (2.0f * i / scrWidth) - 1.0f;   // current point along viewing plane from -1 to 1
 
-            Vec2<float> rayVec;
-            rayVec.x = dirVec.x + (planeVec.x * planeScalar);// ray vec will sweep along viewing plane
-            rayVec.y = dirVec.y + (planeVec.y * planeScalar);// as loop progresses                             
-            //std::cout << "Ray Vector x: " << rayVec.x << " y: " << rayVec.y << "\n";
+            rayVec.x = dirVec.x + (planeVec.x * planeScalar);   // ray vec will sweep along viewing plane
+            rayVec.y = dirVec.y + (planeVec.y * planeScalar);   // as loop progresses                             
 
-            Vec2<int> tilePos;
             tilePos.x = floor(playerPos.x), tilePos.y = floor(playerPos.y); // tile of the map player is in
 
-            float currDistX, currDistY;                         // distance from player to current point in loop
-            //std::cout << "Tile x: " << tilePos.x << " y: " << tilePos.y << "\n";
-            
             // length of ray vector when w component is 1 (roughly), same thing for yStepRatio 
-            float xStepRatio = (rayVec.x == 0) ? std::numeric_limits<float>::infinity() : std::abs(1 / rayVec.x); // if will divide by zero, set infinity 
-            float yStepRatio = (rayVec.y == 0) ? std::numeric_limits<float>::infinity() : std::abs(1 / rayVec.y); 
-            //std::cout << "StepRatio x: " << xStepRatio << " y: " << yStepRatio << "\n";
-        
-            // -1 or 1 depending on direction
-            int xStep, yStep;
+            xStepRatio = (rayVec.x == 0) ? std::numeric_limits<float>::infinity() : std::abs(1 / rayVec.x); // if will divide by zero, set infinity 
+            yStepRatio = (rayVec.y == 0) ? std::numeric_limits<float>::infinity() : std::abs(1 / rayVec.y); 
 
             // setting stepping values and starting pos for currDist
 
             if(rayVec.x < 0) { // x component in -ve direction
                 xStep = -1;
-                // length along ray vec to get to next gridline
+                // length along ray vec to get to next gridline by multiplying with ratio
                 currDistX = (playerPos.x - tilePos.x) * xStepRatio;
             } else { // x component in +ve direction
                 xStep = 1;
@@ -199,95 +201,36 @@ int main() {
 
             // get distance to wall
             // this is derived using similar triangles
-            // by other people smarter than me (lodev.org)
+            // on lodev.org
             if(wallSide == X_WALL) {
                 distances[i] = currDistX - xStepRatio;
                 // also store wall colours
                 wallColours[i] = map[(tilePos.y * mapHeight) + tilePos.x];
-                //std::cout << "x: " << currDistX << ", " << xStepRatio << " dist: " << distances[i] << "\n";
             } else {
                 distances[i] = currDistY - yStepRatio;
                 wallColours[i] = map[(tilePos.y * mapHeight) + tilePos.x] + 10; // different wall colours for Y_WALLs
-                //std::cout << "y: " << currDistY << ", " << yStepRatio << " dist: " << distances[i] << "\n";
             }
         }
 
 
 
-        // draw columns to string
-        // doing this intermediate step means drawing each line to screen is done concurrently
-        // move this into function!!!
-        int currLine = 0;
-        float distFromCentre;
-        float halfColumnHeight;
-        uint8_t prevColour = 0, currColour; // used to determine if to switch colour
-        std::string floorColour = "\x1b[37m"; // white
-        std::string ceilColour = "\x1b[36m"; // cyan
-        bool prevWasFloorCeil = false;
-        for(std::string& line : screen) {
-            line = ""; // remove previous line
-            // should get dist to centre of screen, might be off by 1
-            distFromCentre = (scrHeight / 2.0f) - currLine; // non absolute
-            //std::cout << distFromCentre << "\n";
-            for(int i=0; i <= scrWidth; i++) {
-                currColour = wallColours[i];
-
-                // inefficient, has to calculate more than necessary
-                // precalculating would instead be faster
-                halfColumnHeight = scrHeight / (1.0f * distances[i]);
-
-                //append character if column is there
-                if(abs(distFromCentre) <= halfColumnHeight) {
-                    // only add ansi colour when necessary
-                    if(currColour != prevColour || prevWasFloorCeil) {
-                        line.append(ANSIStringFromColour(currColour));
-                    }
-                    
-                    line.append(wallChar); // wall
-                    prevWasFloorCeil = false;
-                } else {
-                    if(distFromCentre > 0) {
-                        // only add ansi colour when necessary
-                        if(!prevWasFloorCeil)
-                            line.append(ceilColour);
-
-                        line.append(ceilChar); // ceiling
-                        prevWasFloorCeil = true;
-                    } else {
-                        // only add ansi colour when necessary
-                        if(!prevWasFloorCeil)
-                            line.append(floorColour);
-
-                        line.append(floorChar); // floor
-                        prevWasFloorCeil = true;
-                    }
-                }
-                prevColour = currColour;
-            }
-            currLine++;
-        }
-
-
-
-        // actually print lines to screen
-        for (const std::string& line : screen) {
-            // i think std::endl is slow as it also clears the buffer
-            std::cout << line << "\n";
-        }
+        drawColumnsToScreen(distances, wallColours, scrWidth, scrHeight, wallChar, ceilChar, floorChar);
 
 
 
         totalFrames++;
         // can remove later, for debugging
         auto frameEnd = std::chrono::system_clock::now();
-        std::chrono::duration<double> frameTime = frameEnd - frameStart;
+        std::chrono::duration<float> frameTime = frameEnd - frameStart;
         std::cout << "\x1b[37mtotal frames: " << totalFrames << "\nframe time: " << frameTime.count() * 1000 << "ms\n";
+
+        lastDeltaTime = frameTime.count();
 
         // wait until end of frame (frame length - time already run)
         std::this_thread::sleep_for(FRAME_LENGTH - frameTime); 
     }
 
-    std::chrono::duration<double> totalTime = (std::chrono::system_clock::now()) - gameStartTime;
+    std::chrono::duration<float> totalTime = (std::chrono::system_clock::now()) - gameStartTime;
     std::cout << "\x1b[0mtotal time running: " << totalTime.count() << "s\n";
     
     return 0;
@@ -331,4 +274,67 @@ void playerInput(Vec2<float>& position, Vec2<float>& dirVec, Vec2<float>& planeV
         } else if(getKeyPressed(XK_d) && !getKeyPressed(XK_a)) {
             moveIfNoCollision(position, movementSpeed * dirVec.y, -(movementSpeed * dirVec.x), map, mapWidth, mapHeight);
         } 
+}
+
+void drawColumnsToScreen(float* distances, uint8_t* wallColours, int scrWidth, int scrHeight, std::string wallChar, std::string ceilChar, std::string floorChar) {
+    std::string scrBuffer;
+
+    std::string floorColour = "\x1b[32m"; // green
+    std::string ceilColour = "\x1b[36m"; // cyan
+    std::string ANSIprefix = "\x1b[";
+
+    int currLine = 0;
+    float distFromCentre;
+    float halfColumnHeight;
+
+    uint8_t prevColour = 0, currColour; // used to determine if to switch colour
+    bool prevWasFloorCeil = false;
+
+    for(int i=0; i <= scrHeight; i++) {
+        // should get dist to centre of screen, might be off by 1 because im dumb
+        distFromCentre = (scrHeight / 2.0f) - currLine; // non absolute
+        //std::cout << distFromCentre << "\n";
+        for(int j=0; j <= scrWidth; j++) {
+            currColour = wallColours[j];
+
+            // inefficient, has to calculate more than necessary
+            // precalculating would instead be faster
+            halfColumnHeight = scrHeight / distances[j];
+
+            //append character if column is there
+            if(abs(distFromCentre) <= halfColumnHeight) { // wall
+                // only add ansi colour when necessary
+                if(currColour != prevColour || prevWasFloorCeil) {
+                    int ANSIcolour = ANSIColourFromColour(currColour);
+
+                    std::string colourStr = ANSIprefix + std::to_string(ANSIcolour) + "m"; 
+                    scrBuffer.append(colourStr);
+                }
+                    
+                scrBuffer.append(wallChar);
+                prevWasFloorCeil = false;
+            } else { // not wall
+                if(distFromCentre > 0) { // ceiling
+                    // only add ansi colour when necessary
+                    if(!prevWasFloorCeil)
+                        scrBuffer.append(ceilColour);
+
+                    scrBuffer.append(ceilChar);
+                    prevWasFloorCeil = true;
+                } else { // floor
+                    // only add ansi colour when necessary
+                    if(!prevWasFloorCeil)
+                        scrBuffer.append(floorColour);
+
+                    scrBuffer.append(floorChar);
+                    prevWasFloorCeil = true;
+                }
+            }
+            prevColour = currColour;
+        }
+        scrBuffer.append("\n");
+        currLine++;
+    }
+
+    std::cout << scrBuffer;
 }

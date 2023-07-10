@@ -13,4 +13,4 @@ void moveIfNoCollision(Vec2<float>& vec, float dx, float dy, uint8_t* map, int m
 
 void getWinSize(int* w, int* h);
 bool getKeyPressed(KeySym key);
-std::string ANSIStringFromColour(uint8_t colour);
+int ANSIColourFromColour(uint8_t colour);
