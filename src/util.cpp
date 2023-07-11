@@ -1,6 +1,5 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
-#include <tuple>
 #include <iostream>
 #include <cmath>
 #include "util.hpp"
@@ -44,7 +43,7 @@ int ANSIColourFromColour(uint8_t colour) {
             ANSIcolour = 31; // red
             break;
         case 3:
-            ANSIcolour = 34; // blue
+            ANSIcolour = 33; // yellow
             break;
         case 4:
             ANSIcolour = 35; // magenta
@@ -57,7 +56,7 @@ int ANSIColourFromColour(uint8_t colour) {
             ANSIcolour = 91; // bright red
             break;
         case 13:
-            ANSIcolour = 94; // bright blue
+            ANSIcolour = 93; // bright yellow
             break;
         case 14:
             ANSIcolour = 95; // bright magenta
@@ -67,14 +66,14 @@ int ANSIColourFromColour(uint8_t colour) {
     return ANSIcolour;
 }
 
-void rotate2DVector(Vec2<float>& vec, float angle) {
+void rotate2DVector(Vec2f& vec, float angle) {
     const float oldVecX = vec.x;
     // rotate using 2d rotation matrix
-    vec.x = (vec.x * cos(angle)) - (vec.y * sin(angle));
-    vec.y = (oldVecX * sin(angle)) + (vec.y * cos(angle));
+    vec.x = (vec.x * std::cos(angle)) - (vec.y * std::sin(angle));
+    vec.y = (oldVecX * std::sin(angle)) + (vec.y * std::cos(angle));
 }
 
-void moveIfNoCollision(Vec2<float>& vec, float dx, float dy, uint8_t* map, int mapWidth, int mapHeight) {
+void moveIfNoCollision(Vec2f& vec, float dx, float dy, uint8_t* map, int mapWidth, int mapHeight) {
     float newX = vec.x + dx, newY = vec.y + dy;
 
     if(map[(int(newY) * mapWidth) + int(newX)] > 0) {
