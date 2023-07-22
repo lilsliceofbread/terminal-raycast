@@ -1,34 +1,21 @@
-#include <sys/ioctl.h>
-#include <unistd.h>
+#ifdef __linux__
+#include <ncurses.h>
+#elif _WIN32
+#include <curses.h>
+#endif
+
+//#include <sys/ioctl.h>
+//#include <unistd.h>
 #include <iostream>
 #include <cmath>
 #include "util.hpp"
 
-void getWinSize(int* w, int* h) {
-    winsize terminal_size;
-
-    // linux function to query kernel stuff
-    ioctl(STDOUT_FILENO, TIOCGWINSZ, &terminal_size);
-
-    *w = terminal_size.ws_col;
-    *h = terminal_size.ws_row;
-}
-
-bool getKeyPressed(KeySym key) {
-    Display *display = XOpenDisplay(":0");
-    char keysReturn[32]; // 32*8 = 256 bits for ascii codes
-
-    XQueryKeymap(display, keysReturn);
-    // gets actual ascii keycode - KeyCode is just unsigned char
-    KeyCode keycode = XKeysymToKeycode(display, key); 
-
-    // scuffed bitwise ops to get if bitflag of keyReturn is pressed using keycode
-    // https://stackoverflow.com/questions/18281412/check-keypress-in-c-on-linux
-    bool isPressed = (keysReturn[keycode >> 3] & (1 << (keycode & 7)));
-
-    XCloseDisplay(display);
-    return isPressed;
-}
+/*bool getKeyPressed(int keyCode) {
+    int keyPressed = getch();
+    if(keyPressed == ERR) return false; //remove ltr
+    //printw("%d\n", keyPressed);
+    return keyPressed == keyCode; 
+}*/
 
 int ANSIColourFromColour(uint8_t colour) {
     int ANSIcolour = 0;

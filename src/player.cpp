@@ -1,3 +1,9 @@
+#ifdef __linux__
+#include <ncurses.h>
+#elif _WIN32
+#include <curses.h>
+#endif
+
 #include <iostream>
 #include <cmath>
 #include "util.hpp"
@@ -32,45 +38,52 @@ const float Player::GetAngle() const {
     return mAngle;
 }
 
-void Player::Input(uint8_t* map, int mapWidth, int mapHeight, float lastDeltaTime) {
-        // correct speeds based on deltaTime
-        float fMoveSpeed = mMoveSpeed * lastDeltaTime;
-        float fTurnSpeed = mTurnSpeed * lastDeltaTime;
+void Player::Update(uint8_t* map, int mapWidth, int mapHeight, float lastDeltaTime) {
+    // correct speeds based on deltaTime
+    float fMoveSpeed = mMoveSpeed * lastDeltaTime;
+    float fTurnSpeed = mTurnSpeed * lastDeltaTime;
 
-        if(getKeyPressed(XK_Right)) {
-            mAngle -= fTurnSpeed;
+    int keyPressed = 0;
+    while (keyPressed != ERR) {
+        keyPressed = getch();
 
-            // must recalculate vectors
-            mDirVec.x = std::cos(mAngle); // dir vec is just unit vector
-            mDirVec.y = std::sin(mAngle); // so is just cos and sin
+        switch (keyPressed) {
+            case KEY_RIGHT:
+                mAngle -= fTurnSpeed;
 
-            rotate2DVector(mPlaneVec, -fTurnSpeed);
-        } else if (getKeyPressed(XK_Left)) {
-            mAngle += fTurnSpeed;
-            
-            mDirVec.x = std::cos(mAngle); 
-            mDirVec.y = std::sin(mAngle);
+                // must recalculate vectors
+                mDirVec.x = std::cos(mAngle); // dir vec is just unit vector
+                mDirVec.y = std::sin(mAngle); // so is just cos and sin
 
-            rotate2DVector(mPlaneVec, fTurnSpeed);
+                rotate2DVector(mPlaneVec, -fTurnSpeed);
+                break;
+            case KEY_LEFT:
+                mAngle += fTurnSpeed;
+
+                mDirVec.x = std::cos(mAngle);
+                mDirVec.y = std::sin(mAngle);
+
+                rotate2DVector(mPlaneVec, fTurnSpeed);
+                break;
+            case 'w':
+                moveIfNoCollision(mPosition, fMoveSpeed * mDirVec.x, fMoveSpeed * mDirVec.y, map, mapWidth, mapHeight);
+                break;
+            case 's':
+                moveIfNoCollision(mPosition, -(fMoveSpeed * mDirVec.x), -(fMoveSpeed * mDirVec.y), map, mapWidth, mapHeight);
+                break;
+            case 'a':
+                moveIfNoCollision(mPosition, -(fMoveSpeed * mDirVec.y), fMoveSpeed * mDirVec.x, map, mapWidth, mapHeight);
+                break;
+            case 'd':
+                moveIfNoCollision(mPosition, fMoveSpeed * mDirVec.y, -(fMoveSpeed * mDirVec.x), map, mapWidth, mapHeight);
+                break;
         }
-
-        // prevent mAngle > 360 or < 0
-        if(mAngle > (2.0f * M_PI)) {
-            mAngle -= 2.0f * M_PI;
-        } else if (mAngle < 0) {
-            mAngle += 2.0f * M_PI;
-        }
-
-        if(getKeyPressed(XK_w) && !getKeyPressed(XK_s)) {
-            moveIfNoCollision(mPosition, fMoveSpeed * mDirVec.x, fMoveSpeed * mDirVec.y, map, mapWidth, mapHeight);
-        } else if(getKeyPressed(XK_s) && !getKeyPressed(XK_w)) {
-            moveIfNoCollision(mPosition, -(fMoveSpeed * mDirVec.x), -(fMoveSpeed * mDirVec.y), map, mapWidth, mapHeight);
-        }
-
-        // perpendicular vector is sin and -cos or -sin and cos
-        if(getKeyPressed(XK_a) && !getKeyPressed(XK_d)) {
-            moveIfNoCollision(mPosition, -(fMoveSpeed * mDirVec.y), fMoveSpeed * mDirVec.x, map, mapWidth, mapHeight);
-        } else if(getKeyPressed(XK_d) && !getKeyPressed(XK_a)) {
-            moveIfNoCollision(mPosition, fMoveSpeed * mDirVec.y, -(fMoveSpeed * mDirVec.x), map, mapWidth, mapHeight);
-        } 
+    }
+    
+    // constrain angle between 0 and 2PI
+    if (mAngle > (2.0f * M_PI)) {
+        mAngle -= 2.0f * M_PI;
+    } else if (mAngle < 0) {
+        mAngle += 2.0f * M_PI;
+    }
 }

@@ -1,5 +1,11 @@
-# Very WIP
+# WIP
 
-Basic raycaster in the terminal, with help from lodev.org. Only works on Linux X11 as of current
+Basic raycaster in the terminal
 
-Will use Unicode if your terminal allows it
+On linux you need to install the ncurses package 
+`sudo apt install libncurses-dev`
+and then run `make`
+
+Windows will need MinGW to run the makefile. PDcurses lib is included in this repo so no need to install it manually.
+
+Move around with WASD, turn with left and right arrow keys
