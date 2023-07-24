@@ -5,7 +5,7 @@ class Player {
         Player(float x, float y, float angle, float moveSpeed, float turnSpeed);
         ~Player();
 
-        void Update(uint8_t* map, int mapWidth, int mapHeight, float lastDeltaTime);
+        void Update(uint8_t* map, int mapWidth, int mapHeight);
 
         const Vec2f GetPos() const;
         const Vec2f GetDirVec() const;

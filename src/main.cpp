@@ -35,10 +35,10 @@ int main() {
     "                                                      |___/                            \n"
     << std::endl;
 
-    // 1 for wall, 0 for air
     constexpr int mapWidth = 25;
     constexpr int mapHeight = 25;
-    // not const incase i want to update it at runtime
+    
+    // 1 is white wall, 2 is red, 3 is yellow, 4 is magenta
     uint8_t map[mapWidth * mapHeight] = {
         1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
         1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
@@ -68,68 +68,48 @@ int main() {
     };
 
     //            x      y      a  mspeed tspeed
-    Player player(12.0f, 12.0f, 0, 400.0f, 100.0f);
+    Player player(12.0f, 12.0f, 0, 0.5f, 0.12f);
 
     Raycaster raycaster(map, mapWidth, mapHeight, &player);
 
-
-    // ask if to use unicode block character
-    /*std::cout << "Use Unicode characters? [y for yes]" << std::endl;
-    std::string answer;
-    std::getline(std::cin, answer);
-
-    std::string yes = "Yy";
-
-    if(yes.find(answer) != std::string::npos) { // if answer is matched in yes string
-        raycaster.SetUnicode();
-    } // all other options are the default*/
-
-
-
     auto gameStartTime = std::chrono::system_clock::now();
-    float lastDeltaTime = 0.003; // reasonable starting value
-    int totalFrames = 0;
-    raycaster.InitWindow();
+    float lastDeltaTime = 0; // used in loop so needs initialisation
+    raycaster.InitWindow(); // create ncurses context n shit
 
     // game loop
     while(true) {
         int keyPressed = getch();
-        if(keyPressed == 'q') {
+        if(keyPressed == 'q') { // check for quit key
             break;
         }
         ungetch(keyPressed); // put key back into input queue if not exit
 
         auto frameStart = std::chrono::system_clock::now();
 
-        // FIXXXXXXXXXXXXXX
-        Vec2f playerPos = player.GetPos();
-        std::string printString;
-        printString = "angle: " + std::to_string(player.GetAngle() * (180/M_PI)) + " x: " + std::to_string(playerPos.x) + " y: " + std::to_string(playerPos.y) + "\n";
-
         raycaster.Raycast();
         raycaster.Draw();
 
-        raycaster.Print(printString);
+        // for debug purposes
+        Vec2f playerPos = player.GetPos();
+        char valueBuffer[100]; 
+        // this is omega scuffed but i want to use string formatting
+        sprintf(valueBuffer, "angle: %f x: %f y: %f \nframetime: %fms\n", player.GetAngle() * (180/M_PI), playerPos.x, playerPos.y, lastDeltaTime * 1000.0f);
+        std::string valueStr(valueBuffer);
+        raycaster.Print(valueStr);
 
-        player.Update(map, mapWidth, mapHeight, lastDeltaTime);
-
-        totalFrames++;
+        player.Update(map, mapWidth, mapHeight);
 
         auto frameEnd = std::chrono::system_clock::now();
         std::chrono::duration<float> frameTime = frameEnd - frameStart;
 
-        // FIX PART 2
-        std::stringstream testString;
-        testString << "total frames: " << totalFrames << " frame time: " << frameTime.count() * 1000 << "ms\n";
-        raycaster.Print(testString.str());
-
+        // is last frame's time in seconds
         lastDeltaTime = frameTime.count();
 
         // wait until end of frame (frame length - time already run)
         std::this_thread::sleep_for(FRAME_LENGTH - frameTime); 
     }
 
-    std::chrono::duration<float> totalTime = (std::chrono::system_clock::now()) - gameStartTime;
+    std::chrono::duration<float> totalTime = std::chrono::system_clock::now() - gameStartTime;
     std::cout << "total time running: " << totalTime.count() << "s" << std::endl;
     
     return 0;

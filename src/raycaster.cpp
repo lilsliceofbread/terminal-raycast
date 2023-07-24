@@ -17,9 +17,11 @@
 #define X_WALL 0
 #define Y_WALL 1
 #define LOOP_LIMIT 1000
+#define FLOOR_COLOUR 5
+#define CEIL_COLOUR 6
 
 Raycaster::Raycaster(uint8_t* map, int mapWidth, int mapHeight, Player* player)
-: mPlayerPtr(player), mMapPtr(map), mMapWidth(mapWidth), mMapHeight(mapHeight), mHasInitWindow(false) {
+: mPlayerPtr(player), mMapPtr(map), mMapWidth(mapWidth), mMapHeight(mapHeight), mHasInitWindow(false), mUseColour(false) {
     
     wallChar = '|';
     ceilChar = '`';
@@ -32,13 +34,13 @@ Raycaster::~Raycaster() {
 
     // allowing ncurses to give back terminal if window was initialised
     if(mHasInitWindow) {
-        delwin(mWindow);
         endwin();
     }
 }
 
 void Raycaster::Print(const std::string& str) {
-    if(!mHasInitWindow) {
+    if(!mHasInitWindow) { // don't try printw() if not initscr()
+        std::cerr << "can't use ncurses printw(), not initialised" << std::endl;
         return;
     }
     printw("%s", str.c_str());
@@ -49,25 +51,44 @@ void Raycaster::InitWindow() {
     mHasInitWindow = true;
 
     initscr();
+
     cbreak(); // disable input buffering until enter is pressed
     noecho(); // disable input being displayed to terminal
     keypad(stdscr, TRUE); // allow special character input to be detected e.g. arrow keys
     nodelay(stdscr, TRUE); // don't wait for input with getch()
     
     // could center on screen? (winHeight - scrHeight)/2
-    mWindow = newwin(mScrHeight + PADDING, mScrWidth, 0, 0);
+    //mWindow = newwin(mScrHeight + PADDING, mScrWidth, 0, 0);
 
+    // only use colours if you can
+    if(has_colors() == TRUE) {
+        mUseColour = true; 
+        start_color();
+
+        init_pair(1, COLOR_WHITE, COLOR_WHITE);
+        init_pair(2, COLOR_RED, COLOR_RED);
+        init_pair(3, COLOR_YELLOW, COLOR_YELLOW);
+        init_pair(4, COLOR_MAGENTA, COLOR_MAGENTA);
+        // floor/ceil colours
+        init_pair(FLOOR_COLOUR, COLOR_GREEN, COLOR_GREEN);
+        init_pair(CEIL_COLOUR, COLOR_CYAN, COLOR_CYAN);
+    }
 
     // must do this after initscr() call
     int winHeight, winWidth;
     getmaxyx(stdscr, winHeight, winWidth); // ncurses macro, which is why not passing in &h, &w
-    if(winWidth < 0 || winHeight < 0) exit(1);
+    if(winWidth < 0 || winHeight < 0) {
+        endwin();
+        std::cerr << "failed to get terminal window size" << std::endl;
+        exit(1);
+    }
 
     // ensure "screen" size is not greater than terminal window size
     mScrWidth = (winWidth - PADDING < MAX_WIDTH) ? winWidth - PADDING : MAX_WIDTH;
     mScrHeight = (winHeight - PADDING < MAX_HEIGHT) ? winHeight - PADDING : MAX_HEIGHT;
 
     mDistances = new float[mScrWidth];
+    // should make it so it doesn't allocate when not using colour but im too dumb
     mWallColours = new uint8_t[mScrWidth];
 }
 
@@ -158,18 +179,20 @@ void Raycaster::Raycast() {
             } else {
                 // same for y
                 mDistances[i] = currDistY - yStepRatio;
-                mWallColours[i] = mMapPtr[(tileY * mMapHeight) + tileX] + 10; // different wall colours for Y_WALLs
+                mWallColours[i] = mMapPtr[(tileY * mMapHeight) + tileX];
             }
         }
 }
 
 void Raycaster::Draw() {
-    std::string scrBuffer;
-
-    uint8_t prevColour = 0, currColour; // used to determine if to switch colour
-    bool prevWasFloorCeil = false;
+    uint8_t prevColour = CEIL_COLOUR, currColour; // used to determine if to switch colour
+    bool prevWasFloorCeil = true;
 
     int currLine = 0;
+    // start colour before loop
+    erase();
+    move(0, 0);
+    attron(COLOR_PAIR(CEIL_COLOUR));
     for(int i=0; i < mScrHeight; i++) {
         // should get dist to centre of screen, might be off by 1 because im dumb
         float distFromCentre = (mScrHeight / 2.0f) - currLine; // non absolute
@@ -177,45 +200,51 @@ void Raycaster::Draw() {
         for(int j=0; j < mScrWidth; j++) {
             currColour = mWallColours[j];
 
-            // inefficient, has to calculate more than necessary
-            // precalculating would instead be faster
+            // precalculating these might be faster
             float halfColumnHeight = mScrHeight / mDistances[j];
 
             //append character if column is there
             if(abs(distFromCentre) <= halfColumnHeight) { // wall
-                // only add ansi colour when necessary
-                if(currColour != prevColour || prevWasFloorCeil) {
-                    int ANSIcolour = ANSIColourFromColour(currColour);
-
+                // only add colour when necessary
+                if((currColour != prevColour || prevWasFloorCeil) && mUseColour) {
+                    // turn on colour
+                    attroff(COLOR_PAIR(prevColour));
+                    attron(COLOR_PAIR(currColour));
                 }
                     
-                scrBuffer.push_back(wallChar);
+                addch((chtype)wallChar);
                 prevWasFloorCeil = false;
             } else { // not wall
                 if(distFromCentre > 0) { // ceiling
-                    // only add ansi colour when necessary
-                    if(!prevWasFloorCeil)
-                        ;
+                    // only add colour when necessary
+                    if(!prevWasFloorCeil && mUseColour) {
+                        attroff(COLOR_PAIR(prevColour));
+                        attron(COLOR_PAIR(CEIL_COLOUR));
+                    }
 
-                    scrBuffer.push_back(ceilChar);
+                    addch((chtype)ceilChar);
+                    currColour = CEIL_COLOUR;
                     prevWasFloorCeil = true;
                 } else { // floor
-                    // only add ansi colour when necessary
-                    if(!prevWasFloorCeil)
-                        ;
+                    // only add colour when necessary
+                    if(!prevWasFloorCeil && mUseColour) {
+                        attroff(COLOR_PAIR(prevColour));
+                        attron(COLOR_PAIR(FLOOR_COLOUR));
+                    }
 
-                    scrBuffer.push_back(floorChar);
+                    addch((chtype)floorChar);
+                    currColour = FLOOR_COLOUR;
                     prevWasFloorCeil = true;
                 }
             }
             prevColour = currColour;
         }
-        scrBuffer.push_back('\n');
+        attroff(currColour);
+        addch((chtype)'\n');
         currLine++;
     }
-
-    erase();
-    wmove(mWindow, 0, 0);
-    printw("%s", scrBuffer.c_str());
-    wrefresh(mWindow);
+    // stop colour bleeding into text
+    attroff(COLOR_PAIR(currColour));
+    
+    refresh();
 }

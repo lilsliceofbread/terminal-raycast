@@ -38,44 +38,42 @@ const float Player::GetAngle() const {
     return mAngle;
 }
 
-void Player::Update(uint8_t* map, int mapWidth, int mapHeight, float lastDeltaTime) {
-    // correct speeds based on deltaTime
-    float fMoveSpeed = mMoveSpeed * lastDeltaTime;
-    float fTurnSpeed = mTurnSpeed * lastDeltaTime;
-
-    int keyPressed = 0;
+void Player::Update(uint8_t* map, int mapWidth, int mapHeight) {
+    int keyPressed = 0; // non-matching starting value
+    // loops through all chars in input buffer until none left
     while (keyPressed != ERR) {
+        // get 1 character from input buffer
         keyPressed = getch();
 
         switch (keyPressed) {
             case KEY_RIGHT:
-                mAngle -= fTurnSpeed;
+                mAngle -= mTurnSpeed;
 
                 // must recalculate vectors
                 mDirVec.x = std::cos(mAngle); // dir vec is just unit vector
                 mDirVec.y = std::sin(mAngle); // so is just cos and sin
 
-                rotate2DVector(mPlaneVec, -fTurnSpeed);
+                rotate2DVector(mPlaneVec, -mTurnSpeed);
                 break;
             case KEY_LEFT:
-                mAngle += fTurnSpeed;
+                mAngle += mTurnSpeed;
 
                 mDirVec.x = std::cos(mAngle);
                 mDirVec.y = std::sin(mAngle);
 
-                rotate2DVector(mPlaneVec, fTurnSpeed);
+                rotate2DVector(mPlaneVec, mTurnSpeed);
                 break;
             case 'w':
-                moveIfNoCollision(mPosition, fMoveSpeed * mDirVec.x, fMoveSpeed * mDirVec.y, map, mapWidth, mapHeight);
+                moveIfNoCollision(mPosition, mMoveSpeed * mDirVec.x, mMoveSpeed * mDirVec.y, map, mapWidth, mapHeight);
                 break;
             case 's':
-                moveIfNoCollision(mPosition, -(fMoveSpeed * mDirVec.x), -(fMoveSpeed * mDirVec.y), map, mapWidth, mapHeight);
+                moveIfNoCollision(mPosition, -(mMoveSpeed * mDirVec.x), -(mMoveSpeed * mDirVec.y), map, mapWidth, mapHeight);
                 break;
             case 'a':
-                moveIfNoCollision(mPosition, -(fMoveSpeed * mDirVec.y), fMoveSpeed * mDirVec.x, map, mapWidth, mapHeight);
+                moveIfNoCollision(mPosition, -(mMoveSpeed * mDirVec.y), mMoveSpeed * mDirVec.x, map, mapWidth, mapHeight);
                 break;
             case 'd':
-                moveIfNoCollision(mPosition, fMoveSpeed * mDirVec.y, -(fMoveSpeed * mDirVec.x), map, mapWidth, mapHeight);
+                moveIfNoCollision(mPosition, mMoveSpeed * mDirVec.y, -(mMoveSpeed * mDirVec.x), map, mapWidth, mapHeight);
                 break;
         }
     }
