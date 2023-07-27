@@ -5,6 +5,7 @@
 #endif
 
 #include <iostream>
+#define _USE_MATH_DEFINES
 #include <cmath>
 #include <limits>
 #include "util.hpp"
@@ -19,34 +20,12 @@
 #define LOOP_LIMIT 1000
 #define FLOOR_COLOUR 5
 #define CEIL_COLOUR 6
+#define WALL_CHAR '|'
+#define CEIL_CHAR '`'
+#define FLOOR_CHAR '~'
 
 Raycaster::Raycaster(uint8_t* map, int mapWidth, int mapHeight, Player* player)
 : mPlayerPtr(player), mMapPtr(map), mMapWidth(mapWidth), mMapHeight(mapHeight), mHasInitWindow(false), mUseColour(false) {
-    
-    wallChar = '|';
-    ceilChar = '`';
-    floorChar = '~';
-}
-
-Raycaster::~Raycaster() {
-    delete[] mDistances;
-    delete[] mWallColours;
-
-    // allowing ncurses to give back terminal if window was initialised
-    if(mHasInitWindow) {
-        endwin();
-    }
-}
-
-void Raycaster::Print(const std::string& str) {
-    if(!mHasInitWindow) { // don't try printw() if not initscr()
-        std::cerr << "can't use ncurses printw(), not initialised" << std::endl;
-        return;
-    }
-    printw("%s", str.c_str());
-}
-
-void Raycaster::InitWindow() {
     // in case not initialised don't want to delete in destructor
     mHasInitWindow = true;
 
@@ -57,9 +36,6 @@ void Raycaster::InitWindow() {
     keypad(stdscr, TRUE); // allow special character input to be detected e.g. arrow keys
     nodelay(stdscr, TRUE); // don't wait for input with getch()
     
-    // could center on screen? (winHeight - scrHeight)/2
-    //mWindow = newwin(mScrHeight + PADDING, mScrWidth, 0, 0);
-
     // only use colours if you can
     if(has_colors() == TRUE) {
         mUseColour = true; 
@@ -88,8 +64,26 @@ void Raycaster::InitWindow() {
     mScrHeight = (winHeight - PADDING < MAX_HEIGHT) ? winHeight - PADDING : MAX_HEIGHT;
 
     mDistances = new float[mScrWidth];
-    // should make it so it doesn't allocate when not using colour but im too dumb
+    // should make it so it doesn't allocate when not using colour
     mWallColours = new uint8_t[mScrWidth];
+}
+
+Raycaster::~Raycaster() {
+    delete[] mDistances;
+    delete[] mWallColours;
+
+    // allowing ncurses to give back terminal if window was initialised
+    if(mHasInitWindow) {
+        endwin();
+    }
+}
+
+void Raycaster::Print(const std::string& str) {
+    if(!mHasInitWindow) { // don't try printw() if not initscr()
+        std::cerr << "can't use ncurses printw(), not initialised" << std::endl;
+        return;
+    }
+    printw("%s", str.c_str());
 }
 
 void Raycaster::Raycast() {
@@ -212,7 +206,7 @@ void Raycaster::Draw() {
                     attron(COLOR_PAIR(currColour));
                 }
                     
-                addch((chtype)wallChar);
+                addch((chtype)WALL_CHAR);
                 prevWasFloorCeil = false;
             } else { // not wall
                 if(distFromCentre > 0) { // ceiling
@@ -222,7 +216,7 @@ void Raycaster::Draw() {
                         attron(COLOR_PAIR(CEIL_COLOUR));
                     }
 
-                    addch((chtype)ceilChar);
+                    addch((chtype)CEIL_CHAR);
                     currColour = CEIL_COLOUR;
                     prevWasFloorCeil = true;
                 } else { // floor
@@ -232,14 +226,13 @@ void Raycaster::Draw() {
                         attron(COLOR_PAIR(FLOOR_COLOUR));
                     }
 
-                    addch((chtype)floorChar);
+                    addch((chtype)FLOOR_CHAR);
                     currColour = FLOOR_COLOUR;
                     prevWasFloorCeil = true;
                 }
             }
             prevColour = currColour;
         }
-        attroff(currColour);
         addch((chtype)'\n');
         currLine++;
     }

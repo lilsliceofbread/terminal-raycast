@@ -6,7 +6,7 @@
 
 #include <iostream>
 #include <string>
-#include <sstream>
+#define _USE_MATH_DEFINES
 #include <cmath>
 #include <chrono>
 #include <thread>
@@ -70,13 +70,11 @@ int main() {
     //            x      y      a  mspeed tspeed
     Player player(12.0f, 12.0f, 0, 0.5f, 0.12f);
 
+    // used in loop so needs initialisation
+    float lastDeltaTime = 0; 
+
     Raycaster raycaster(map, mapWidth, mapHeight, &player);
 
-    auto gameStartTime = std::chrono::system_clock::now();
-    float lastDeltaTime = 0; // used in loop so needs initialisation
-    raycaster.InitWindow(); // create ncurses context n shit
-
-    // game loop
     while(true) {
         int keyPressed = getch();
         if(keyPressed == 'q') { // check for quit key
@@ -101,16 +99,9 @@ int main() {
 
         auto frameEnd = std::chrono::system_clock::now();
         std::chrono::duration<float> frameTime = frameEnd - frameStart;
-
-        // is last frame's time in seconds
-        lastDeltaTime = frameTime.count();
-
-        // wait until end of frame (frame length - time already run)
-        std::this_thread::sleep_for(FRAME_LENGTH - frameTime); 
+        lastDeltaTime = frameTime.count();                     // is last frame's time in seconds
+        std::this_thread::sleep_for(FRAME_LENGTH - frameTime); // wait until end of frame (frame length - time already run)
     }
 
-    std::chrono::duration<float> totalTime = std::chrono::system_clock::now() - gameStartTime;
-    std::cout << "total time running: " << totalTime.count() << "s" << std::endl;
-    
     return 0;
 }

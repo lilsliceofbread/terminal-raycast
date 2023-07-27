@@ -1,6 +1,6 @@
 NAME := raycast
 CXX := g++
-CXX_FLAGS := -g -Wall -Iinc -std=c++17
+CXX_FLAGS := -g -Wall -Iinc -Iinc/curses -std=c++17
 
 ifeq ($(OS),Windows_NT)
 	LINK_FLAGS := -Llib -lpdcurses
@@ -23,8 +23,8 @@ OBJS := $(patsubst ./src/%.cpp, $(OBJ_DIR)/%.o, $(SOURCES))
 all: directories $(NAME)
 
 directories:
-	mkdir -p $(BUILD_DIR)
-	mkdir -p $(OBJ_DIR)
+	@if not exist "$(BUILD_DIR)" mkdir "$(BUILD_DIR)"
+	@if not exist "$(OBJ_DIR)" mkdir "$(OBJ_DIR)"
 
 $(NAME): $(OBJS)	
 	$(CXX) $(CXX_FLAGS) $(OBJS) $(LINK_FLAGS) -o $(BUILD_DIR)/$(NAME)

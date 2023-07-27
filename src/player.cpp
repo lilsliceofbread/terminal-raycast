@@ -5,6 +5,7 @@
 #endif
 
 #include <iostream>
+#define _USE_MATH_DEFINES
 #include <cmath>
 #include "util.hpp"
 #include "player.hpp"
@@ -18,9 +19,7 @@ Player::Player(float x, float y, float angle, float moveSpeed, float turnSpeed)
     mPlaneVec.y = -mDirVec.x;
 }
 
-Player::~Player() {
-
-}
+Player::~Player() {}
 
 const Vec2f Player::GetPos() const {
     return mPosition;
