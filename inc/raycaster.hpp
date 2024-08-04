@@ -1,6 +1,7 @@
 #pragma once
 
-class Raycaster {
+class Raycaster
+{
     public:
         Raycaster(uint8_t* map, int mapWidth, int mapHeight, Player* player);
         ~Raycaster();

@@ -1,6 +1,7 @@
 #pragma once
 
-class Player {
+class Player 
+{
     public:
         Player(float x, float y, float angle, float moveSpeed, float turnSpeed);
         ~Player();

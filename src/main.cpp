@@ -23,17 +23,17 @@ using namespace std::chrono_literals;
 
 #define FRAME_LENGTH 16.66ms
 
-int main() {
-    std::cout << 
-    " _____                   _             _  ______                          _            \n"
-    "|_   _|                 (_)           | | | ___ \\                        | |           \n"
-    "  | | ___ _ __ _ __ ___  _ _ __   __ _| | | |_/ /__ _ _   _  ___ __ _ ___| |_ ___ _ __ \n"
-    "  | |/ _ \\ '__| '_ ` _ \\| | '_ \\ / _` | | |    // _` | | | |/ __/ _` / __| __/ _ \\ '__|\n"
-    "  | |  __/ |  | | | | | | | | | | (_| | | | |\\ \\ (_| | |_| | (_| (_| \\__ \\ ||  __/ |   \n"
-    "  \\_/\\___|_|  |_| |_| |_|_|_| |_|\\__,_|_| \\_| \\_\\__,_|\\__, |\\___\\__,_|___/\\__\\___|_|   \n"
-    "                                                       __/ |                           \n"
-    "                                                      |___/                            \n"
-    << std::endl;
+int main()
+{
+    std::cout << " _____                   _             _  ______                          _            \n"
+                 "|_   _|                 (_)           | | | ___ \\                        | |           \n"
+                 "  | | ___ _ __ _ __ ___  _ _ __   __ _| | | |_/ /__ _ _   _  ___ __ _ ___| |_ ___ _ __ \n"
+                 "  | |/ _ \\ '__| '_ ` _ \\| | '_ \\ / _` | | |    // _` | | | |/ __/ _` / __| __/ _ \\ '__|\n"
+                 "  | |  __/ |  | | | | | | | | | | (_| | | | |\\ \\ (_| | |_| | (_| (_| \\__ \\ ||  __/ |   \n"
+                 "  \\_/\\___|_|  |_| |_| |_|_|_| |_|\\__,_|_| \\_| \\_\\__,_|\\__, |\\___\\__,_|___/\\__\\___|_|   \n"
+                 "                                                       __/ |                           \n"
+                 "                                                      |___/                            \n"
+              << std::endl;
 
     constexpr int mapWidth = 25;
     constexpr int mapHeight = 25;
@@ -71,16 +71,15 @@ int main() {
     Player player(12.0f, 12.0f, 0, 0.5f, 0.12f);
 
     // used in loop so needs initialisation
-    float lastDeltaTime = 0; 
+    float lastDeltaTime = 0;
 
     Raycaster raycaster(map, mapWidth, mapHeight, &player);
 
-    while(true) {
+    while(true)
+    {
         int keyPressed = getch();
-        if(keyPressed == 'q') { // check for quit key
-            break;
-        }
-        ungetch(keyPressed); // put key back into input queue if not exit
+        if(keyPressed == 'q') break; // check for quit key
+        ungetch(keyPressed);          // put key back into input queue if not exit
 
         auto frameStart = std::chrono::system_clock::now();
 
@@ -89,9 +88,9 @@ int main() {
 
         // for debug purposes
         Vec2f playerPos = player.GetPos();
-        char valueBuffer[100]; 
+        char valueBuffer[100];
         // this is omega scuffed but i want to use string formatting
-        sprintf(valueBuffer, "angle: %f x: %f y: %f \nframetime: %fms\n", player.GetAngle() * (180/M_PI), playerPos.x, playerPos.y, lastDeltaTime * 1000.0f);
+        sprintf(valueBuffer, "angle: %f x: %f y: %f \nframetime: %fms\n", player.GetAngle() * (180 / M_PI), playerPos.x, playerPos.y, lastDeltaTime * 1000.0f);
         std::string valueStr(valueBuffer);
         raycaster.Print(valueStr);
 
